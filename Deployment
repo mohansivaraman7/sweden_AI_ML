@@ -1,0 +1,17 @@
+1. Single Program
+  1.1 Data Train (preprocessing, reading)
+     model = LinearRegression()
+     model.fit(x_train, y_train)
+
+  1.2 Data Prediction
+      output = model.fit(x_test)
+
+  1.3 Data or Model Evaluation
+      metric = r2_Score(y_test, output)
+
+2. API Program
+ 2.1. Data Train (Preprocessing , reading)
+      model = LinearRegression()
+      model.fit(x_train, y_train)
+      model will be save as the pickling file.
+      joblib is the library which will help us in converting thin into pickling file
