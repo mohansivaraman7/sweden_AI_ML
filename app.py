@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import joblib
+print("hello India")
 
 print("hello India")
 
@@ -13,8 +14,7 @@ def my_landing_page():
 
 @app.route("/reshma")
 def my_special_function():
-    return "Welcome to new home"
-
+    return "Welcome to New home"
 
 @app.route("/predict", methods=["POST"])
 def predict():
