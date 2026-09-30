@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 import joblib
 
 app = Flask(__name__)
-
+print("hello world")
 model = joblib.load("sridhar.pkl")
 
 @app.route("/")
@@ -11,7 +11,7 @@ def my_landing_page():
 
 @app.route("/reshma")
 def my_special_function():
-    return "Welcome to my home"
+    return "Welcome to sridhar home"
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -28,3 +28,4 @@ def predict():
 
 if __name__ == "__main__":
     app.run()
+
