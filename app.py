@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
 import joblib
 print("hello India")
+
+print("hello India")
+
 app = Flask(__name__)
 
 model = joblib.load("sridhar.pkl")
