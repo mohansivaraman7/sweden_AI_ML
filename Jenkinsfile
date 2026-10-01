@@ -1,5 +1,13 @@
+// Jenkinsfile for Jenkins running on WINDOWS (uses bat instead of sh).
 pipeline {
     agent any
+
+    environment {
+        // If Jenkins can't find Python, put the full path here, e.g.
+        // PYTHON = 'C:\\Users\\<you>\\AppData\\Local\\Programs\\Python\\Python311\\python.exe'
+        PYTHON = 'python'
+        PORT   = '5000'
+    }
 
     stages {
         stage('Checkout') {
@@ -8,47 +16,49 @@ pipeline {
             }
         }
 
-        stage('Java failure demo') {
+        stage('Install dependencies') {
             steps {
-                // Writes a tiny Java program that throws an exception, compiles it and runs it.
-                // The exception makes java exit with code 1, so this stage (and the build) fails.
-                sh '''
-                    cat > FailDemo.java <<'EOF'
-public class FailDemo {
-    public static void main(String[] args) {
-        System.out.println("Starting Java step...");
-        int[] sizes = {1000, 1200, 1500};
-        System.out.println("Reading size: " + sizes[5]);   // index 5 does not exist
-    }
-}
-EOF
-                    javac FailDemo.java
-                    java FailDemo
+                bat '''
+                    "%PYTHON%" --version
+                    "%PYTHON%" -m venv venv
+                    venv\\Scripts\\python.exe -m pip install --upgrade pip
+                    venv\\Scripts\\python.exe -m pip install -r requirements.txt waitress
                 '''
             }
         }
 
-        stage('Install dependencies') {
-            // Skipped automatically because the stage before it failed.
+        stage('Train model') {
             steps {
-                sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install -r requirements.txt
-                '''
+                bat 'venv\\Scripts\\python.exe train_model.py'
+            }
+        }
+
+        stage('Stop old app') {
+            steps {
+                // Kill whatever is listening on the port from the previous build (ok if nothing is).
+                bat(returnStatus: true, script: '''
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do taskkill /F /PID %%a
+                ''')
+            }
+        }
+
+        stage('Run app') {
+            steps {
+                // JENKINS_NODE_COOKIE=dontKillMe keeps the app running after the build finishes.
+                withEnv(['JENKINS_NODE_COOKIE=dontKillMe']) {
+                    bat '''
+                        start "sweden_app" /B venv\\Scripts\\waitress-serve.exe --listen=0.0.0.0:%PORT% app:app > app.log 2>&1
+                        ping -n 8 127.0.0.1 > nul
+                        curl.exe -s http://localhost:%PORT%/
+                    '''
+                }
             }
         }
     }
 
     post {
         failure {
-            echo "BUILD FAILED: the Java step threw an exception. See the stack trace in the 'Java failure demo' stage log."
-        }
-        success {
-            echo 'Build succeeded.'
-        }
-        always {
-            sh 'rm -f FailDemo.java FailDemo.class'
+            echo 'Build failed - if the app did not start, open app.log in the job workspace.'
         }
     }
 }
