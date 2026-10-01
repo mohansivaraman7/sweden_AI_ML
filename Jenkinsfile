@@ -8,38 +8,47 @@ pipeline {
             }
         }
 
+        stage('Java failure demo') {
+            steps {
+                // Writes a tiny Java program that throws an exception, compiles it and runs it.
+                // The exception makes java exit with code 1, so this stage (and the build) fails.
+                sh '''
+                    cat > FailDemo.java <<'EOF'
+public class FailDemo {
+    public static void main(String[] args) {
+        System.out.println("Starting Java step...");
+        int[] sizes = {1000, 1200, 1500};
+        System.out.println("Reading size: " + sizes[5]);   // index 5 does not exist
+    }
+}
+EOF
+                    javac FailDemo.java
+                    java FailDemo
+                '''
+            }
+        }
+
         stage('Install dependencies') {
+            // Skipped automatically because the stage before it failed.
             steps {
                 sh '''
                     python3 -m venv venv
                     . venv/bin/activate
-                    pip install --upgrade pip
                     pip install -r requirements.txt
                 '''
             }
         }
+    }
 
-        stage('Train model') {
-            steps {
-                sh '''
-                    . venv/bin/activate
-                    python train_model.py
-                '''
-            }
+    post {
+        failure {
+            echo "BUILD FAILED: the Java step threw an exception. See the stack trace in the 'Java failure demo' stage log."
         }
-
-        stage('Run app') {
-            steps {
-                // Stop the app from the previous build, then start the new one in the background.
-                // JENKINS_NODE_COOKIE=dontKillMe keeps the app running after the build finishes.
-                sh '''
-                    . venv/bin/activate
-                    if [ -f /tmp/sweden_app.pid ]; then kill $(cat /tmp/sweden_app.pid) || true; sleep 2; fi
-                    JENKINS_NODE_COOKIE=dontKillMe nohup gunicorn --bind 0.0.0.0:5000 --pid /tmp/sweden_app.pid app:app > app.log 2>&1 &
-                    sleep 5
-                    curl -s http://localhost:5000/
-                '''
-            }
+        success {
+            echo 'Build succeeded.'
+        }
+        always {
+            sh 'rm -f FailDemo.java FailDemo.class'
         }
     }
 }
